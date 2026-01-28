@@ -1,0 +1,10 @@
+## Interface: 120000, 120001
+## Title: Precogged
+## Notes: Alerts you when you have Precognition
+## Author: Allen Trinh 
+## Version: 1.0
+## SavedVariables: PrecoggedDB
+
+embeds.xml
+
+Precogged.lua
