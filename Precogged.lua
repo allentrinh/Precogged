@@ -165,7 +165,14 @@ function Precogged:OnEvent(event, unit, updateInfo)
         -- 2. Check if Precognition was specifically added
         if updateInfo.addedAuras then
             for _, aura in ipairs(updateInfo.addedAuras) do
-                if aura.spellId == PRECOGNITION_SPELL_ID then
+                local spellId = aura.spellId
+
+                -- Skip secret auras
+                if issecretvalue(spellId) then
+                    return
+                end
+
+                if spellId == PRECOGNITION_SPELL_ID then
                     self:TriggerEffect(aura.duration, aura.expirationTime)
                     return
                 end
@@ -184,11 +191,22 @@ function Precogged:OnEvent(event, unit, updateInfo)
 end
 
 function Precogged:CheckForPrecognition()
-    -- Use the plural C_UnitAuras as found in your documentation
     local aura = C_UnitAuras.GetPlayerAuraBySpellID(PRECOGNITION_SPELL_ID)
-    if aura then
-        self:TriggerEffect(aura.duration, aura.expirationTime)
+    
+    -- 1. Check if the aura exists at all
+    if not aura then return end
+
+    -- 2. Check if the aura is "Secret" (Private)
+    -- Precognition doesn't have secret values, so we skip this aura
+    local spellId = aura.spellId
+    
+    -- Skip secret auras
+    if issecretvalue(spellId) then
+        return
     end
+
+    -- 3. If it's NOT secret, proceed with normal logic
+    self:TriggerEffect(aura.duration, aura.expirationTime)
 end
 
 ---
