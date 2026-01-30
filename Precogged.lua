@@ -3,6 +3,7 @@ local AceConfig = LibStub("AceConfig-3.0")
 local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 local AceDB = LibStub("AceDB-3.0")
 
+-- Constants
 local AURA_NAME = "Precognition"
 local PRECOGNITION_SPELL_ID = 377362
 local SOUND_FILE = "Interface\\AddOns\\Precogged\\Assets\\Shotgun.ogg"
@@ -11,6 +12,8 @@ local ICON_SIZE = 46
 local ICON_BORDER_PADDING = 3
 
 local Precogged = AceAddon:NewAddon("Precogged", "AceConsole-3.0", "AceEvent-3.0")
+
+-- Default values
 local defaults= {
     profile = {
         enabled = true,
@@ -21,11 +24,10 @@ local defaults= {
     },
 }
 
+-- Globals
 local iconFrame = nil
 local cooldownFrame = nil
-
 local timer = nil
-
 local EventFrame = CreateFrame("Frame")
 
 ---
@@ -57,52 +59,42 @@ function Precogged:RegisterMenu()
         name = "Precogged",
         type = "group",
         args = {
-            test = {
-                type = "execute",
-                name = "Test Precogged",
-                desc = "Simulate gaining the Precognition buff.",
-                func = function()
-                    self:DestroyIconTexture()
-                    self:TriggerEffect()
-                end,
-                order = 0,
-            },
-            generalConfig = {
+            header = {
                 type = "group",
-                name = "General Configuration",
+                name = "Options",
                 order = 1,
+                inline = true,
                 args = {
                     enabled = {
                         type = "toggle",
-                        name = "Enable Precogged",
+                        name = "Enable",
                         desc = "Enable or disable the Precogged addon.",
                         order = 1,
                         get = function(info) return self.db.profile.enabled end,
                         set = function(info, value) self.db.profile.enabled = value end,
                     },
-                    enableAudio = {
-                        type = "toggle",
-                        name = "Enable Audio Alert",
-                        desc = "Play a sound when Precognition buff is gained.",
+                    test = {
+                        type = "execute",
+                        name = "Test Precogged",
+                        desc = "Simulate gaining the Precognition buff.",
+                        func = function()
+                            self:DestroyIconTexture()
+                            self:TriggerEffect()
+                        end,
                         order = 2,
-                        get = function(info) return self.db.profile.enableAudio or false end,
-                        set = function(info, value) self.db.profile.enableAudio = value end,
                     },
-                    iconScale = {
-                        type = "range",
-                        name = "Icon Scale",
-                        desc = "Set the scale of the Precognition icon.",
-                        min = 0.5,
-                        max = 2.0,
-                        step = 0.1,
-                        width = "full",
-                        get = function(info) return self.db.profile.iconScale or 1 end,
-                        set = function(info, value) self.db.profile.iconScale = value end,
-                    },
+                }
+            },
+            generalConfig = {
+                type = "group",
+                name = "Configurations",
+                order = 2,
+                args = {
                     position = {
                         type = "group",
                         name = "Icon Position",
                         inline = true,
+                        order = 2,
                         args = {
                             iconY = {
                                 type = "range",
@@ -127,6 +119,33 @@ function Precogged:RegisterMenu()
                                 set = function(info, value) self.db.profile.iconX = value end,
                             },
                         },
+                    },
+                    iconScale = {
+                        type = "range",
+                        name = "Icon Scale",
+                        desc = "Set the scale of the Precognition icon.",
+                        min = 0.5,
+                        max = 2.0,
+                        step = 0.1,
+                        width = "full",
+                        order = 3,
+                        get = function(info) return self.db.profile.iconScale or 1 end,
+                        set = function(info, value) self.db.profile.iconScale = value end,
+                    },
+                    audio = {
+                        type = "group",
+                        name = "Audio Settings",
+                        inline = true,
+                        order = 4,
+                        args = {
+                            enableAudio = {
+                                type = "toggle",
+                                name = "Enable Audio Alert",
+                                desc = "Play a sound when Precognition buff is gained.",
+                                get = function(info) return self.db.profile.enableAudio or false end,
+                                set = function(info, value) self.db.profile.enableAudio = value end,
+                            },
+                        }
                     }
                 },
             },
@@ -151,6 +170,8 @@ function Precogged:OnEnable()
     end)
 end
 
+---
+-- OnEvent handles the UNIT_AURA event and checks for Precognition buff changes
 function Precogged:OnEvent(event, unit, updateInfo)
     if unit ~= "player" then return end
 
@@ -173,7 +194,7 @@ function Precogged:OnEvent(event, unit, updateInfo)
                 end
 
                 if spellId == PRECOGNITION_SPELL_ID then
-                    self:TriggerEffect(aura.duration, aura.expirationTime)
+                    self:TriggerEffect()
                     return
                 end
             end
@@ -190,23 +211,23 @@ function Precogged:OnEvent(event, unit, updateInfo)
     end
 end
 
+---
+-- CheckForPrecognition scans the player's auras to see if Precognition is present
 function Precogged:CheckForPrecognition()
     local aura = C_UnitAuras.GetPlayerAuraBySpellID(PRECOGNITION_SPELL_ID)
     
-    -- 1. Check if the aura exists at all
+    -- Check if the aura exists at all
     if not aura then return end
 
-    -- 2. Check if the aura is "Secret" (Private)
-    -- Precognition doesn't have secret values, so we skip this aura
-    local spellId = aura.spellId
-    
+    -- Check if the aura is secret
     -- Skip secret auras
+    local spellId = aura.spellId
     if issecretvalue(spellId) then
         return
     end
 
-    -- 3. If it's NOT secret, proceed with normal logic
-    self:TriggerEffect(aura.duration, aura.expirationTime)
+    -- If it's NOT secret, proceed with normal logic
+    self:TriggerEffect()
 end
 
 ---
@@ -252,8 +273,6 @@ end
 ---
 -- TriggerEffect handles the visual and audio effects when Precognition is gained
 function Precogged:TriggerEffect()
-    if not self.db.profile.enabled then return end
-
     self:CreateIconTexture()
 
     if self.db.profile.enableAudio then
